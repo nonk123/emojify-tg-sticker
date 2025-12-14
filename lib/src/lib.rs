@@ -1,6 +1,6 @@
 use std::fmt;
 
-use image::{GenericImageView, ImageBuffer, ImageError, Pixel};
+use image::{GenericImageView, ImageError, Rgba, RgbaImage};
 
 pub const EMOJI_SIZE: u32 = 100;
 
@@ -27,23 +27,23 @@ impl From<ImageError> for EmojifyError {
 
 pub type EmojifyResult<T> = Result<T, EmojifyError>;
 
-pub struct Emojify<P: Pixel> {
+pub struct Emojify {
     pub cols: u32,
-    pub emojis: Vec<ImageBuffer<P, Vec<<P as Pixel>::Subpixel>>>,
+    pub emojis: Vec<RgbaImage>,
 }
 
-impl<P: Pixel> Emojify<P> {
+impl Emojify {
     pub fn rows(&self) -> u32 {
         self.emojis.len() as u32 / self.cols
     }
 }
 
-pub fn transform<P: Pixel>(
-    image: &(impl GenericImageView<Pixel = P> + 'static),
-) -> EmojifyResult<Emojify<P>> {
+pub fn transform(
+    image: &(impl GenericImageView<Pixel = Rgba<u8>> + 'static),
+) -> EmojifyResult<Emojify> {
     let mut emojis = vec![];
 
-    let rows = image.height() / EMOJI_SIZE;
+    let mut rows = image.height() / EMOJI_SIZE;
     let cols = image.width() / EMOJI_SIZE;
 
     for row in 0..rows {
@@ -55,6 +55,26 @@ pub fn transform<P: Pixel>(
                 .try_view(startx, starty, EMOJI_SIZE, EMOJI_SIZE)?
                 .to_image();
             emojis.push(emoji);
+        }
+    }
+
+    let mut row = 0;
+    while row < rows {
+        let mut blank_row = true;
+        for col in 0..cols {
+            let pixels = emojis[(row * cols + col) as usize].pixels();
+            if pixels.cloned().any(|Rgba([_, _, _, a])| a > 0) {
+                blank_row = false;
+                break;
+            }
+        }
+        if blank_row {
+            for _ in 0..cols {
+                emojis.remove((row * cols) as usize);
+            }
+            rows -= 1;
+        } else {
+            row += 1;
         }
     }
 
