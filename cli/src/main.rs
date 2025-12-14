@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use emojify_tg_sticker::EMOJI_SIZE;
 use image::ImageReader;
+use log::LevelFilter;
 
 #[derive(Parser)]
 #[command(version, about, long_about)]
@@ -19,7 +20,7 @@ struct Args {
 
 fn main() -> color_eyre::eyre::Result<()> {
     let _ = color_eyre::install();
-    env_logger::try_init()?;
+    env_logger::builder().filter_level(LevelFilter::Info).init();
 
     let args = Args::parse();
     let input_image = ImageReader::open(&args.image_path)?.decode()?;
