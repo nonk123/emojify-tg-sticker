@@ -1,6 +1,6 @@
 # emojify-tg-sticker
 
-A simple CLI tool for converting whole images into walls of consecutive emojis. Point this program to an image, and it'll produce a directory of image slices suitable for creating a custom emoji pack.
+A simple CLI tool for slicing whole images into 100x100px Telegram emojis. Point this program to an image, and it'll produce a directory with the emoji slices in a numeric order.
 
 ## Usage
 
