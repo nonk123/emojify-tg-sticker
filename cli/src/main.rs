@@ -8,9 +8,12 @@ use emojify_tg_sticker::EMOJI_SIZE;
 use image::ImageReader;
 
 #[derive(Parser)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about)]
+/// Slice an image into 100-by-100 PNGs to use inside an emoji pack.
 struct Args {
+    /// Image file (preferrably PNG) to convert.
     image_path: PathBuf,
+    /// Directory where to output the sliced PNGs. Defaults to input filename without the extension.
     output_dir: Option<PathBuf>,
 }
 
