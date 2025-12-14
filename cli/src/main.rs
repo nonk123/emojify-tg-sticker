@@ -43,7 +43,7 @@ fn main() -> color_eyre::eyre::Result<()> {
     let _ = std::fs::create_dir_all(&outdir);
 
     for (idx, emoji) in result.emojis.iter().enumerate() {
-        let outpath = outdir.join(format!("{0:}.png", idx));
+        let outpath = outdir.join(format!("{:0>2}.png", idx + 1));
         emoji.save(outpath)?;
     }
 
