@@ -18,7 +18,7 @@ fn main() -> color_eyre::eyre::Result<()> {
     let _ = color_eyre::install();
     pretty_env_logger::try_init()?;
 
-    let args = Args::try_parse()?;
+    let args = Args::parse();
     let input_image = ImageReader::open(&args.image_path)?.decode()?;
 
     let result = emojify_tg_sticker::transform(&input_image)?;
