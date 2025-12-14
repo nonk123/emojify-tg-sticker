@@ -19,7 +19,7 @@ struct Args {
 
 fn main() -> color_eyre::eyre::Result<()> {
     let _ = color_eyre::install();
-    pretty_env_logger::try_init()?;
+    env_logger::try_init()?;
 
     let args = Args::parse();
     let input_image = ImageReader::open(&args.image_path)?.decode()?;
