@@ -43,7 +43,7 @@ fn main() -> color_eyre::eyre::Result<()> {
         warn!("output directory was not specified; defaulting to input filename sans extension");
         args.image_path.with_extension("")
     });
-    info!("outputting images to {:?}", outdir);
+    info!("outputting {} images to {:?}", result.emojis.len(), outdir);
     let _ = std::fs::create_dir_all(&outdir);
 
     for (idx, emoji) in result.emojis.iter().enumerate() {
