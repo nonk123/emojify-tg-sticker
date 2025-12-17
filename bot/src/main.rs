@@ -191,6 +191,8 @@ async fn create_receive_picture(
                 .await?;
         }
         Some(ref pic) => {
+            bot.send_message(msg.chat.id, "Processing...").await?;
+
             let file = bot.get_file(pic.file.id.clone()).await?;
             let mut data = Cursor::new(Vec::with_capacity(pic.file.size as usize));
             bot.download_file(&file.path, &mut data).await?;
@@ -208,7 +210,6 @@ async fn create_receive_picture(
                 }
             };
 
-            bot.send_message(msg.chat.id, "Processing...").await?;
             let result = match emojify_tg_sticker::transform(&image) {
                 Ok(result) => result,
                 Err(err) => {
