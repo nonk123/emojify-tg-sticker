@@ -58,24 +58,17 @@ pub fn transform(
         }
     }
 
-    let mut row = 0;
-    while row < rows {
-        let mut blank_row = true;
+    'search: while rows > 0 {
         for col in 0..cols {
-            let pixels = emojis[(row * cols + col) as usize].pixels();
+            let pixels = emojis[((rows - 1) * cols + col) as usize].pixels();
             if pixels.cloned().any(|Rgba([_, _, _, a])| a > 0) {
-                blank_row = false;
-                break;
+                break 'search;
             }
         }
-        if blank_row {
-            for _ in 0..cols {
-                emojis.remove((row * cols) as usize);
-            }
-            rows -= 1;
-        } else {
-            row += 1;
+        for _ in 0..cols {
+            emojis.remove(((rows - 1) * cols) as usize);
         }
+        rows -= 1;
     }
 
     Ok(Emojify { cols, emojis })
