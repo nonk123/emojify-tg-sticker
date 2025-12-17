@@ -27,8 +27,9 @@ async fn main() -> color_eyre::Result<()> {
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
     info!("starting the bot");
+
     let bot = Bot::from_env();
-    let storage = InMemStorage::<State>::new();
+    bot.set_my_commands(Command::bot_commands()).await?;
 
     use dptree::{case, endpoint};
 
@@ -52,6 +53,7 @@ async fn main() -> color_eyre::Result<()> {
 
     let dialogue_handler = dialogue::enter::<Update, InMemStorage<State>, State, _>().branch(message_handler);
 
+    let storage = InMemStorage::<State>::new();
     Dispatcher::builder(bot, dialogue_handler)
         .dependencies(dptree::deps![storage])
         .enable_ctrlc_handler()
