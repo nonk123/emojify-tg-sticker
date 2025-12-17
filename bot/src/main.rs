@@ -14,6 +14,7 @@ use teloxide::{
     prelude::*,
     requests::MultipartRequest,
     types::{InputFile, InputSticker, StickerFormat, StickerType::CustomEmoji, True},
+    utils::command::BotCommands as _,
 };
 
 type DialogueFr = Dialogue<State, InMemStorage<State>>;
@@ -64,9 +65,9 @@ async fn main() -> color_eyre::Result<()> {
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase")]
 enum Command {
-    /// Display the introduction text.
+    /// Display the introduction.
     Start,
-    /// Display this text.
+    /// Display the list of available commands.
     Help,
     /// Create or overwrite an emoji pack.
     Create,
@@ -99,8 +100,8 @@ async fn start(bot: Bot, msg: Message) -> HandlerResult {
 }
 
 async fn help(bot: Bot, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "Try /help to figure out what to do with me.")
-        .await?;
+    let mess = format!("{}", Command::descriptions().to_string());
+    bot.send_message(msg.chat.id, mess).await?;
     Ok(())
 }
 
