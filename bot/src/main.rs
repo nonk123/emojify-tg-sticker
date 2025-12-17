@@ -73,7 +73,7 @@ enum Command {
     Create,
     /// Nuke one of the created emoji packs.
     Delete,
-    /// Cancel the ongoing procedure (if any).
+    /// Cancel the ongoing operation (if any).
     Cancel,
 }
 
