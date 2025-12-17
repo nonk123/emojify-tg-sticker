@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use std::io::Cursor;
+use std::io::{Cursor, Seek, SeekFrom};
 
 use color_eyre::eyre::OptionExt;
 use image::{ImageFormat, ImageReader};
@@ -165,8 +165,8 @@ async fn create_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> H
 async fn create_receive_emoji(bot: Bot, diag: DialogueFr, pack_name: String, msg: Message) -> HandlerResult {
     match msg.text().map(ToOwned::to_owned) {
         Some(emoji) => {
-            bot.send_message(msg.chat.id, "Now send me the picture you want to slice.")
-                .await?;
+            let mess = "Now send me the picture you want to slice. Attach it as a PNG file.";
+            bot.send_message(msg.chat.id, mess).await?;
             diag.update(State::CreateReceivePicture { pack_name, emoji }).await?;
         }
         None => {
@@ -179,9 +179,11 @@ async fn create_receive_emoji(bot: Bot, diag: DialogueFr, pack_name: String, msg
 async fn create_receive_picture(
     bot: Bot,
     diag: DialogueFr,
-    (pack_name, emoji): (String, String),
+    (pack_basename, emoji): (String, String),
     msg: Message,
 ) -> HandlerResult {
+    let pack_name = format!("{}_by_{}", pack_basename, bot_username());
+
     match msg.document() {
         None => {
             bot.send_message(msg.chat.id, "Attach the picture as a PNG file please.")
@@ -189,19 +191,23 @@ async fn create_receive_picture(
         }
         Some(ref pic) => {
             let file = bot.get_file(pic.file.id.clone()).await?;
-            let mut pic_data = Cursor::new(Vec::with_capacity(pic.file.size as usize));
-            bot.download_file(&file.path, &mut pic_data).await?;
+            let mut data = Cursor::new(Vec::with_capacity(pic.file.size as usize));
+            bot.download_file(&file.path, &mut data).await?;
 
-            let Ok(reader) = ImageReader::new(pic_data).with_guessed_format() else {
-                bot.send_message(msg.chat.id, "Please use the PNG format.").await?;
-                return Ok(());
-            };
-            let Ok(image) = reader.decode() else {
-                bot.send_message(msg.chat.id, "Failed to parse your image. Try harder.")
-                    .await?;
-                return Ok(());
+            data.seek(SeekFrom::Start(0))?;
+            let mut reader = ImageReader::new(data);
+            reader.set_format(ImageFormat::Png);
+
+            let image = match reader.decode() {
+                Ok(image) => image,
+                Err(err) => {
+                    let mess = format!("Failed to parse your image. Try again.\n\n`{:?}`", err);
+                    bot.send_message(msg.chat.id, mess).await?;
+                    return Ok(());
+                }
             };
 
+            bot.send_message(msg.chat.id, "Processing...").await?;
             let result = emojify_tg_sticker::transform(&image)?;
 
             if let Ok(_) = bot.get_sticker_set(&pack_name).await {
@@ -217,6 +223,9 @@ async fn create_receive_picture(
                     if let Err(_) = image.write_to(&mut cursor, ImageFormat::Png) {
                         return None;
                     }
+                    if let Err(_) = cursor.seek(SeekFrom::Start(0)) {
+                        return None;
+                    }
                     Some(InputSticker {
                         sticker: InputFile::read(cursor),
                         format: StickerFormat::Static,
@@ -226,13 +235,15 @@ async fn create_receive_picture(
                     })
                 })
                 .collect();
+
+            bot.send_message(msg.chat.id, "Uploading...").await?;
             MultipartRequest::new(
-                bot,
+                bot.clone(),
                 CreateNewStickerSet {
                     user_id,
                     stickers,
-                    title: format!("{} | TODO: change", pack_name),
-                    name: pack_name,
+                    title: format!("{} | TODO: edit", pack_basename),
+                    name: pack_name.clone(),
                     sticker_type: Some(CustomEmoji),
                     needs_repainting: None,
                 },
@@ -240,6 +251,8 @@ async fn create_receive_picture(
             .send()
             .await?;
 
+            let mess = format!("All good! Try your emoji pack at t.me/addstickers/{pack_name}");
+            bot.send_message(msg.chat.id, mess).await?;
             diag.exit().await?;
         }
     }
@@ -249,4 +262,11 @@ async fn create_receive_picture(
 async fn invalid_state(bot: Bot, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, "???").await?;
     Ok(())
+}
+
+fn bot_username() -> String {
+    std::env::var("BOT_USERNAME").unwrap_or_else(|_| {
+        warn!("BOT_USERNAME unspecified; falling back to a garbage value");
+        String::from("helloWorldBot")
+    })
 }
