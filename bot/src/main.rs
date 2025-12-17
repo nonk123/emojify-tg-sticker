@@ -225,10 +225,6 @@ async fn create_receive_picture(
                 }
             };
 
-            if let Ok(_) = bot.get_sticker_set(&pack_name).await {
-                let _ = bot.delete_sticker_set(&pack_name).await;
-            }
-
             let user_id = msg.from.map(|x| x.id).ok_or_eyre("failed to get sender id")?;
             let stickers: Vec<InputSticker> = result
                 .emojis
@@ -260,6 +256,9 @@ async fn create_receive_picture(
             };
 
             bot.send_message(msg.chat.id, "Uploading...").await?;
+            if let Ok(_) = bot.get_sticker_set(&pack_name).await {
+                let _ = bot.delete_sticker_set(&pack_name).await;
+            }
             MultipartRequest::new(bot.clone(), req).send().await?;
 
             let mess = format!("All good! Try your emoji pack at t.me/addstickers/{pack_name}");
