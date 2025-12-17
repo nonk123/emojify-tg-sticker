@@ -71,7 +71,7 @@ enum Command {
     Help,
     /// Create or overwrite an emoji pack.
     Create,
-    /// Nuke one of the created emoji pack.
+    /// Nuke one of the created emoji packs.
     Delete,
     /// Cancel the ongoing procedure (if any).
     Cancel,
