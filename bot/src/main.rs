@@ -201,14 +201,21 @@ async fn create_receive_picture(
             let image = match reader.decode() {
                 Ok(image) => image,
                 Err(err) => {
-                    let mess = format!("Failed to parse your image. Try again.\n\n`{:?}`", err);
+                    let mess = format!("Failed to parse your image. Try again.\n\nError code: `{:?}`", err);
                     bot.send_message(msg.chat.id, mess).await?;
                     return Ok(());
                 }
             };
 
             bot.send_message(msg.chat.id, "Processing...").await?;
-            let result = emojify_tg_sticker::transform(&image)?;
+            let result = match emojify_tg_sticker::transform(&image) {
+                Ok(result) => result,
+                Err(err) => {
+                    let mess = format!("Failed to process your image. Try again.\n\nError code: `{:?}`", err);
+                    bot.send_message(msg.chat.id, mess).await?;
+                    return Ok(());
+                }
+            };
 
             if let Ok(_) = bot.get_sticker_set(&pack_name).await {
                 let _ = bot.delete_sticker_set(&pack_name).await;
