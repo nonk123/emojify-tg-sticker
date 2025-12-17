@@ -13,7 +13,7 @@ use teloxide::{
     payloads::CreateNewStickerSet,
     prelude::*,
     requests::MultipartRequest,
-    types::{InputFile, InputSticker, StickerFormat, StickerType::CustomEmoji, True},
+    types::{InputFile, InputSticker, StickerFormat, StickerType},
     utils::command::BotCommands as _,
 };
 
@@ -26,7 +26,7 @@ async fn main() -> color_eyre::Result<()> {
     let _ = color_eyre::install();
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
-    info!("Starting the bot");
+    info!("starting the bot");
     let bot = Bot::from_env();
     let storage = InMemStorage::<State>::new();
 
@@ -94,38 +94,35 @@ enum State {
 
 async fn start(bot: Bot, msg: Message) -> HandlerResult {
     // TODO: say something useful instead.
-    bot.send_message(msg.chat.id, "Try /help to figure out what to do with me.")
-        .await?;
+    let mess = "Try /help to figure out what to do with me.";
+    bot.send_message(msg.chat.id, mess).await?;
     Ok(())
 }
 
 async fn help(bot: Bot, msg: Message) -> HandlerResult {
-    let mess = format!("{}", Command::descriptions().to_string());
+    let mess = Command::descriptions().to_string();
     bot.send_message(msg.chat.id, mess).await?;
     Ok(())
 }
 
 async fn create_start(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
-    bot.send_message(
-        msg.chat.id,
-        "Send me the identifier for your pack - something like \"my-cool-emojis\".",
-    )
-    .await?;
+    let mess = "Send me the identifier for your pack - something like \"my-cool-emojis\".";
+    bot.send_message(msg.chat.id, mess).await?;
     diag.update(State::CreateReceivePackBasename).await?;
     Ok(())
 }
 
 async fn delete_start(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "Send me the identifier of the emoji-pack to nuke.")
-        .await?;
+    let mess = "Send me the identifier of the emoji-pack to nuke.";
+    bot.send_message(msg.chat.id, mess).await?;
     diag.update(State::DeleteReceivePackName).await?;
     Ok(())
 }
 
 async fn cancel(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "Cancelled whatever was going on.")
-        .await?;
     diag.exit().await?;
+    let mess = "Cancelled whatever was going on.";
+    bot.send_message(msg.chat.id, mess).await?;
     Ok(())
 }
 
@@ -134,16 +131,13 @@ async fn delete_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> H
         bot.send_message(msg.chat.id, "Please try again.").await?;
         return Ok(());
     };
-    if let Ok(True) = bot.delete_sticker_set(pack_name).await {
-        bot.send_message(msg.chat.id, "All good! Nuke has been received.")
-            .await?;
+    if let Ok(_) = bot.delete_sticker_set(pack_name).await {
+        let mess = "All good! The nuke has reached its destination.";
+        bot.send_message(msg.chat.id, mess).await?;
         diag.exit().await?;
     } else {
-        bot.send_message(
-            msg.chat.id,
-            "Hmm, couldn't find that emoji pack. Try again? Or /cancel.",
-        )
-        .await?;
+        let mess = "Hmm, couldn't find that emoji pack. Try again? Or /cancel. Your choice.";
+        bot.send_message(msg.chat.id, mess).await?;
         diag.update(State::DeleteReceivePackName).await?;
     }
     Ok(())
@@ -151,9 +145,10 @@ async fn delete_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> H
 
 async fn create_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
     let pack_basename = match msg.text().map(ToOwned::to_owned) {
-        Some(pack_basename) => pack_basename,
-        None => {
-            bot.send_message(msg.chat.id, "Not good. Try again.").await?;
+        Some(pack_basename) if (6..=24).contains(&pack_basename.len()) => pack_basename,
+        _ => {
+            let mess = "Not good. Maybe too long or too short? Try again.";
+            bot.send_message(msg.chat.id, mess).await?;
             return Ok(());
         }
     };
@@ -165,8 +160,8 @@ async fn create_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> H
         return Ok(());
     }
 
-    bot.send_message(msg.chat.id, "Send me the emoji you want to fill the pack with.")
-        .await?;
+    let mess = "Send me the emoji you want to fill the pack with.";
+    bot.send_message(msg.chat.id, mess).await?;
     diag.update(State::CreateReceiveEmoji { pack_basename }).await?;
 
     Ok(())
@@ -174,13 +169,14 @@ async fn create_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> H
 
 async fn create_receive_emoji(bot: Bot, diag: DialogueFr, pack_basename: String, msg: Message) -> HandlerResult {
     match msg.text().map(ToOwned::to_owned) {
-        Some(emoji) => {
+        Some(emoji) if (1..=4).contains(&emoji.len()) => {
             let mess = "Now send me the picture you want to slice. Attach it as a PNG file.";
             bot.send_message(msg.chat.id, mess).await?;
-            diag.update(State::CreateReceivePicture { pack_basename, emoji })
-                .await?;
+
+            let state = State::CreateReceivePicture { pack_basename, emoji };
+            diag.update(state).await?;
         }
-        None => {
+        _ => {
             bot.send_message(msg.chat.id, "Not good. Try again.").await?;
         }
     }
@@ -197,8 +193,8 @@ async fn create_receive_picture(
 
     match msg.document() {
         None => {
-            bot.send_message(msg.chat.id, "Attach the picture as a PNG file please.")
-                .await?;
+            let mess = "Attach the picture as a PNG file please.";
+            bot.send_message(msg.chat.id, mess).await?;
         }
         Some(ref pic) => {
             bot.send_message(msg.chat.id, "Processing...").await?;
@@ -254,21 +250,17 @@ async fn create_receive_picture(
                     })
                 })
                 .collect();
+            let req = CreateNewStickerSet {
+                user_id,
+                stickers,
+                title: format!("{} | TODO: edit", pack_basename),
+                name: pack_name.clone(),
+                sticker_type: Some(StickerType::CustomEmoji),
+                needs_repainting: None,
+            };
 
             bot.send_message(msg.chat.id, "Uploading...").await?;
-            MultipartRequest::new(
-                bot.clone(),
-                CreateNewStickerSet {
-                    user_id,
-                    stickers,
-                    title: format!("{} | TODO: edit", pack_basename),
-                    name: pack_name.clone(),
-                    sticker_type: Some(CustomEmoji),
-                    needs_repainting: None,
-                },
-            )
-            .send()
-            .await?;
+            MultipartRequest::new(bot.clone(), req).send().await?;
 
             let mess = format!("All good! Try your emoji pack at t.me/addstickers/{pack_name}");
             bot.send_message(msg.chat.id, mess).await?;
@@ -285,7 +277,7 @@ async fn invalid_state(bot: Bot, msg: Message) -> HandlerResult {
 
 fn bot_username() -> String {
     std::env::var("BOT_USERNAME").unwrap_or_else(|_| {
-        warn!("BOT_USERNAME unspecified; falling back to a garbage value");
+        error!("BOT_USERNAME unspecified; falling back to a garbage value");
         String::from("helloWorldBot")
     })
 }
