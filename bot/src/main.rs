@@ -44,9 +44,9 @@ async fn main() -> color_eyre::Result<()> {
 
     let message_handler = Update::filter_message()
         .branch(command_handler)
-        .branch(case![State::CreateReceivePackName].endpoint(create_receive_pack_name))
-        .branch(case![State::CreateReceiveEmoji { pack_name }].endpoint(create_receive_emoji))
-        .branch(case![State::CreateReceivePicture { pack_name, emoji }].endpoint(create_receive_picture))
+        .branch(case![State::CreateReceivePackBasename].endpoint(create_receive_pack_name))
+        .branch(case![State::CreateReceiveEmoji { pack_basename }].endpoint(create_receive_emoji))
+        .branch(case![State::CreateReceivePicture { pack_basename, emoji }].endpoint(create_receive_picture))
         .branch(case![State::DeleteReceivePackName].endpoint(delete_receive_pack_name))
         .branch(endpoint(invalid_state));
 
@@ -81,12 +81,12 @@ enum Command {
 enum State {
     #[default]
     Start,
-    CreateReceivePackName,
+    CreateReceivePackBasename,
     CreateReceiveEmoji {
-        pack_name: String,
+        pack_basename: String,
     },
     CreateReceivePicture {
-        pack_name: String,
+        pack_basename: String,
         emoji: String,
     },
     DeleteReceivePackName,
@@ -111,7 +111,7 @@ async fn create_start(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult
         "Send me the identifier for your pack - something like \"my-cool-emojis\".",
     )
     .await?;
-    diag.update(State::CreateReceivePackName).await?;
+    diag.update(State::CreateReceivePackBasename).await?;
     Ok(())
 }
 
@@ -150,25 +150,35 @@ async fn delete_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> H
 }
 
 async fn create_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
-    match msg.text().map(ToOwned::to_owned) {
-        Some(pack_name) => {
-            bot.send_message(msg.chat.id, "Send me the emoji you want to fill the pack with.")
-                .await?;
-            diag.update(State::CreateReceiveEmoji { pack_name }).await?;
-        }
+    let pack_basename = match msg.text().map(ToOwned::to_owned) {
+        Some(pack_basename) => pack_basename,
         None => {
             bot.send_message(msg.chat.id, "Not good. Try again.").await?;
+            return Ok(());
         }
+    };
+
+    let pack_name = format!("{}_by_{}", pack_basename, bot_username());
+    if let Ok(_) = bot.get_sticker_set(pack_name).await {
+        let mess = "This pack already exists. Either nuke it or try another name.";
+        bot.send_message(msg.chat.id, mess).await?;
+        return Ok(());
     }
+
+    bot.send_message(msg.chat.id, "Send me the emoji you want to fill the pack with.")
+        .await?;
+    diag.update(State::CreateReceiveEmoji { pack_basename }).await?;
+
     Ok(())
 }
 
-async fn create_receive_emoji(bot: Bot, diag: DialogueFr, pack_name: String, msg: Message) -> HandlerResult {
+async fn create_receive_emoji(bot: Bot, diag: DialogueFr, pack_basename: String, msg: Message) -> HandlerResult {
     match msg.text().map(ToOwned::to_owned) {
         Some(emoji) => {
             let mess = "Now send me the picture you want to slice. Attach it as a PNG file.";
             bot.send_message(msg.chat.id, mess).await?;
-            diag.update(State::CreateReceivePicture { pack_name, emoji }).await?;
+            diag.update(State::CreateReceivePicture { pack_basename, emoji })
+                .await?;
         }
         None => {
             bot.send_message(msg.chat.id, "Not good. Try again.").await?;
