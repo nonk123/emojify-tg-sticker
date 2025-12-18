@@ -1,7 +1,10 @@
 #[macro_use]
 extern crate log;
 
-use std::io::{Cursor, Seek, SeekFrom};
+use std::{
+    io::{Cursor, Seek, SeekFrom},
+    sync::Arc,
+};
 
 use color_eyre::eyre::OptionExt;
 use image::{ImageFormat, ImageReader};
@@ -18,7 +21,7 @@ use teloxide::{
 };
 
 type DialogueFr = Dialogue<State, InMemStorage<State>>;
-type HandlerResult<T = ()> = color_eyre::Result<T>;
+type HandlerResult = color_eyre::eyre::Result<()>;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
@@ -43,13 +46,18 @@ async fn main() -> color_eyre::Result<()> {
         )
         .branch(case![Command::Cancel].endpoint(cancel));
 
-    let message_handler = Update::filter_message()
-        .branch(command_handler)
+    let state_map = Update::filter_message()
         .branch(case![State::CreateReceivePackBasename].endpoint(create_receive_pack_name))
         .branch(case![State::CreateReceiveEmoji { pack_basename }].endpoint(create_receive_emoji))
         .branch(case![State::CreateReceivePicture { pack_basename, emoji }].endpoint(create_receive_picture))
         .branch(case![State::DeleteReceivePackName].endpoint(delete_receive_pack_name))
-        .branch(endpoint(invalid_state));
+        .branch(endpoint(async || HandlerResult::Ok(())))
+        .endpoint(report_state_errors);
+
+    let message_handler = Update::filter_message()
+        .branch(command_handler)
+        .branch(state_map)
+        .endpoint(invalid_state);
 
     let dialogue_handler = dialogue::enter::<Update, InMemStorage<State>, State, _>().branch(message_handler);
 
@@ -258,21 +266,45 @@ async fn create_receive_picture(
             };
 
             bot.send_message(msg.chat.id, "Uploading...").await?;
+
             if let Ok(_) = bot.get_sticker_set(&pack_name).await {
                 let _ = bot.delete_sticker_set(&pack_name).await;
             }
             MultipartRequest::new(bot.clone(), req).send().await?;
-
-            let mess = format!("All good! Try your emoji pack at t.me/addstickers/{pack_name}");
-            bot.send_message(msg.chat.id, mess).await?;
             diag.exit().await?;
         }
     }
+
     Ok(())
 }
 
 async fn invalid_state(bot: Bot, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, "???").await?;
+    Ok(())
+}
+
+async fn report_state_errors(result: Arc<HandlerResult>, bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
+    if let Err(err_msg) = result.as_ref() {
+        let (start, prompt) = match diag.get().await? {
+            Some(
+                State::CreateReceivePackBasename
+                | State::CreateReceiveEmoji { .. }
+                | State::CreateReceivePicture { .. },
+            ) => (
+                State::CreateReceivePackBasename,
+                "Enter another identifier for your pack.",
+            ),
+            Some(State::DeleteReceivePackName) => (State::DeleteReceivePackName, "Enter your pack's identifier again."),
+            _ => {
+                let _ = diag.exit().await;
+                return Ok(());
+            }
+        };
+
+        let mess = format!("Something went wrong. Error code: `{err_msg}`\n\nLet's try from scratch. {prompt}");
+        bot.send_message(msg.chat.id, mess).await?;
+        diag.update(start).await?;
+    }
     Ok(())
 }
 
