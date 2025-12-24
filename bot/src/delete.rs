@@ -14,11 +14,9 @@ pub async fn receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> BotR
     };
 
     if let Ok(_) = bot.delete_sticker_set(pack_name).await {
-        let mess = "All good! The nuke has reached its destination.";
-        bot.reply_to(&msg, mess).await?;
+        bot.reply_to(&msg, "All good! The nuke has reached its destination.").await?;
     } else {
-        let mess = "Hmm, couldn't find that emoji pack. Cancelling operation.";
-        bot.reply_to(&msg, mess).await?;
+        bot.reply_to(&msg, "Hmm, couldn't find that emoji pack. Cancelling operation.").await?;
     }
 
     diag.exit().await?;

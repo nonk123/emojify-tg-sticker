@@ -14,9 +14,7 @@ impl BotExt for Bot {
     }
 
     async fn md_reply_to(&self, msg: &Message, contents: impl Into<String>) -> BotResult {
-        self.send_message(msg.chat.id, contents.into())
-            .parse_mode(ParseMode::MarkdownV2)
-            .await?;
+        self.send_message(msg.chat.id, contents.into()).parse_mode(ParseMode::MarkdownV2).await?;
         Ok(())
     }
 }

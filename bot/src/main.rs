@@ -80,10 +80,7 @@ async fn main() -> BotResult {
         .branch(case![State::CreateReceivePicture { pack_id, emoji }].endpoint(create::receive_picture))
         .branch(case![State::DeleteReceivePackName].endpoint(delete::receive_pack_name));
 
-    let message_handler = Update::filter_message()
-        .branch(command_handler)
-        .branch(state_map)
-        .endpoint(invalid_state);
+    let message_handler = Update::filter_message().branch(command_handler).branch(state_map).endpoint(invalid_state);
 
     let dialogue_handler = dialogue::enter::<Update, InMemStorage<State>, State, _>().branch(message_handler);
 
@@ -100,14 +97,12 @@ async fn main() -> BotResult {
 
 async fn start(bot: Bot, msg: Message) -> BotResult {
     // TODO: say something useful instead.
-    bot.reply_to(&msg, "See /help to figure out what to do with me.")
-        .await?;
+    bot.reply_to(&msg, "See /help to figure out what to do with me.").await?;
     Ok(())
 }
 
 async fn help(bot: Bot, msg: Message) -> BotResult {
-    let mess = Command::descriptions().to_string();
-    bot.reply_to(&msg, mess).await?;
+    bot.reply_to(&msg, Command::descriptions().to_string()).await?;
     Ok(())
 }
 

@@ -21,8 +21,7 @@ pub async fn receive_pack_id(bot: Bot, diag: DialogueFr, msg: Message) -> BotRes
     let pack_id = match msg.text().map(ToOwned::to_owned) {
         Some(basename) if (6..=24).contains(&basename.len()) && basename.is_ascii() => basename,
         _ => {
-            let mess = "Not good. Maybe too long or too short? Try again.";
-            bot.reply_to(&msg, mess).await?;
+            bot.reply_to(&msg, "Not good. Maybe too long or too short? Try again.").await?;
             return Ok(());
         }
     };
@@ -32,8 +31,7 @@ pub async fn receive_pack_id(bot: Bot, diag: DialogueFr, msg: Message) -> BotRes
         bot.reply_to(&msg, mess).await?;
     }
 
-    bot.reply_to(&msg, "Send me the emoji you want to fill the pack with.")
-        .await?;
+    bot.reply_to(&msg, "Send me the emoji you want to fill the pack with.").await?;
     diag.update(State::CreateReceiveEmoji { pack_id }).await?;
 
     Ok(())
@@ -92,7 +90,7 @@ async fn upload_stickerset(pic: Document, bot: Bot, id: &str, emoji: &str, msg: 
     let mut reader = ImageReader::new(data);
     reader.set_format(ImageFormat::Png);
 
-    let user_id = msg.from.map(|x| x.id).ok_or("Failed to get sender id")?;
+    let user_id = msg.from.clone().map(|x| x.id).ok_or("Failed to get sender id")?;
     let image = reader.decode()?;
 
     let stickers: Vec<InputSticker> = emojify_tg_sticker::transform(&image)?
