@@ -9,6 +9,7 @@ use teloxide::{
     utils::command::BotCommands as _,
 };
 
+mod bot_ext;
 mod create;
 mod delete;
 
@@ -17,8 +18,8 @@ pub mod prelude {
     pub type ErrorValue = Box<dyn std::error::Error + Send + Sync + 'static>;
     pub type BotResult<T = ()> = Result<T, ErrorValue>;
 
-    pub use crate::{Command, State};
-    pub use teloxide::{prelude::*, types::ParseMode, utils::markdown};
+    pub use crate::{Command, State, bot_ext::BotExt};
+    pub use teloxide::{prelude::*, utils::markdown};
 }
 
 #[derive(BotCommands, Clone)]
@@ -99,26 +100,25 @@ async fn main() -> BotResult {
 
 async fn start(bot: Bot, msg: Message) -> BotResult {
     // TODO: say something useful instead.
-    let mess = "See /help to figure out what to do with me.";
-    bot.send_message(msg.chat.id, mess).await?;
+    bot.reply_to(&msg, "See /help to figure out what to do with me.")
+        .await?;
     Ok(())
 }
 
 async fn help(bot: Bot, msg: Message) -> BotResult {
     let mess = Command::descriptions().to_string();
-    bot.send_message(msg.chat.id, mess).await?;
+    bot.reply_to(&msg, mess).await?;
     Ok(())
 }
 
 async fn cancel(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
     diag.exit().await?;
-    let mess = "Cancelled whatever was going on.";
-    bot.send_message(msg.chat.id, mess).await?;
+    bot.reply_to(&msg, "Cancelled whatever was going on.").await?;
     Ok(())
 }
 
 async fn invalid_state(bot: Bot, msg: Message) -> BotResult {
-    bot.send_message(msg.chat.id, "???").await?;
+    bot.reply_to(&msg, "???").await?;
     Ok(())
 }
 

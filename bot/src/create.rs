@@ -12,7 +12,7 @@ use crate::prelude::*;
 
 pub async fn start(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
     let mess = "Send me the identifier for your pack - something like \"my-cool-emojis\".";
-    bot.send_message(msg.chat.id, mess).await?;
+    bot.reply_to(&msg, mess).await?;
     diag.update(State::CreateReceivePackId).await?;
     Ok(())
 }
@@ -22,18 +22,18 @@ pub async fn receive_pack_id(bot: Bot, diag: DialogueFr, msg: Message) -> BotRes
         Some(basename) if (6..=24).contains(&basename.len()) && basename.is_ascii() => basename,
         _ => {
             let mess = "Not good. Maybe too long or too short? Try again.";
-            bot.send_message(msg.chat.id, mess).await?;
+            bot.reply_to(&msg, mess).await?;
             return Ok(());
         }
     };
 
     if let Ok(_) = bot.get_sticker_set(pack_full_id(&pack_id)).await {
         let mess = "⚠️ This pack already exists. Send /cancel unless you wish to nuke it and overwrite its contents.";
-        bot.send_message(msg.chat.id, mess).await?;
+        bot.reply_to(&msg, mess).await?;
     }
 
-    let mess = "Send me the emoji you want to fill the pack with.";
-    bot.send_message(msg.chat.id, mess).await?;
+    bot.reply_to(&msg, "Send me the emoji you want to fill the pack with.")
+        .await?;
     diag.update(State::CreateReceiveEmoji { pack_id }).await?;
 
     Ok(())
@@ -43,13 +43,13 @@ pub async fn receive_emoji(bot: Bot, diag: DialogueFr, pack_id: String, msg: Mes
     match msg.text().map(ToOwned::to_owned) {
         Some(emoji) if (1..=4).contains(&emoji.len()) => {
             let mess = "Now send me the picture you want to slice. Attach it as a PNG file.";
-            bot.send_message(msg.chat.id, mess).await?;
+            bot.reply_to(&msg, mess).await?;
 
             let state = State::CreateReceivePicture { pack_id, emoji };
             diag.update(state).await?;
         }
         _ => {
-            bot.send_message(msg.chat.id, "Not good. Try again.").await?;
+            bot.reply_to(&msg, "Not good. Try again.").await?;
         }
     }
     Ok(())
@@ -58,11 +58,10 @@ pub async fn receive_emoji(bot: Bot, diag: DialogueFr, pack_id: String, msg: Mes
 pub async fn receive_picture(bot: Bot, diag: DialogueFr, (id, emoji): (String, String), msg: Message) -> BotResult {
     match msg.document() {
         None => {
-            let mess = "Attach the picture as a PNG file please.";
-            bot.send_message(msg.chat.id, mess).await?;
+            bot.reply_to(&msg, "Attach the picture as a PNG file please.").await?;
         }
         Some(pic) => {
-            bot.send_message(msg.chat.id, "Processing...").await?;
+            bot.reply_to(&msg, "Processing...").await?;
 
             let mess = if let Err(err) = upload_stickerset(pic.clone(), bot.clone(), &id, &emoji, msg.clone()).await {
                 format!(
@@ -77,10 +76,7 @@ pub async fn receive_picture(bot: Bot, diag: DialogueFr, (id, emoji): (String, S
                     markdown::escape(&pack_full_id(&id))
                 )
             };
-
-            bot.send_message(msg.chat.id, mess)
-                .parse_mode(ParseMode::MarkdownV2)
-                .await?;
+            bot.md_reply_to(&msg, mess).await?;
             diag.exit().await?;
         }
     }
@@ -133,7 +129,7 @@ async fn upload_stickerset(pic: Document, bot: Bot, id: &str, emoji: &str, msg: 
         needs_repainting: None,
     };
 
-    bot.send_message(msg.chat.id, "Uploading...").await?;
+    bot.reply_to(&msg, "Uploading...").await?;
     MultipartRequest::new(bot.clone(), req).send().await?;
     Ok(())
 }
