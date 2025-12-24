@@ -28,7 +28,7 @@ pub async fn receive_pack_id(bot: Bot, diag: DialogueFr, msg: Message) -> BotRes
     };
 
     if let Ok(_) = bot.get_sticker_set(pack_full_id(&pack_id)).await {
-        let mess = "⚠️ This pack already exists. Send /cancel unless you wish to overwrite its contents.";
+        let mess = "⚠️ This pack already exists. Send /cancel unless you wish to nuke it and overwrite its contents.";
         bot.send_message(msg.chat.id, mess).await?;
     }
 
@@ -120,41 +120,21 @@ async fn upload_stickerset(pic: Document, bot: Bot, id: &str, emoji: &str, msg: 
         })
         .collect();
 
-    if let Ok(stickerset) = bot.get_sticker_set(pack_full_id(id)).await {
-        bot.send_message(msg.chat.id, "Uploading... (overwriting existing emojis in the pack)")
-            .await?;
-
-        for idx in 0..stickerset.stickers.len() {
-            bot.replace_sticker_in_set(
-                user_id,
-                pack_full_id(id),
-                stickerset.stickers[idx].file.id.to_string(),
-                stickers[idx].clone(),
-            )
-            .await?;
-        }
-
-        if stickerset.stickers.len() < stickers.len() {
-            bot.send_message(msg.chat.id, "Uploading... (appending trailing emojis to the pack)")
-                .await?;
-        }
-        for idx in stickerset.stickers.len()..stickers.len() {
-            bot.add_sticker_to_set(user_id, &pack_full_id(id), stickers[idx].clone())
-                .await?;
-        }
-    } else {
-        let req = CreateNewStickerSet {
-            user_id,
-            stickers,
-            title: format!("{} | TODO: edit", id),
-            name: pack_full_id(id),
-            sticker_type: Some(StickerType::CustomEmoji),
-            needs_repainting: None,
-        };
-
-        bot.send_message(msg.chat.id, "Uploading...").await?;
-        MultipartRequest::new(bot.clone(), req).send().await?;
+    if let Ok(_) = bot.get_sticker_set(pack_full_id(id)).await {
+        let _ = bot.delete_sticker_set(pack_full_id(id)).await;
     }
+
+    let req = CreateNewStickerSet {
+        user_id,
+        stickers,
+        title: format!("{} | TODO: edit", id),
+        name: pack_full_id(id),
+        sticker_type: Some(StickerType::CustomEmoji),
+        needs_repainting: None,
+    };
+
+    bot.send_message(msg.chat.id, "Uploading...").await?;
+    MultipartRequest::new(bot.clone(), req).send().await?;
     Ok(())
 }
 
