@@ -40,12 +40,12 @@ pub enum Command {
 pub enum State {
     #[default]
     Start,
-    CreateReceivePackBasename,
+    CreateReceivePackId,
     CreateReceiveEmoji {
-        pack_basename: String,
+        pack_id: String,
     },
     CreateReceivePicture {
-        pack_basename: String,
+        pack_id: String,
         emoji: String,
     },
     DeleteReceivePackName,
@@ -74,9 +74,9 @@ async fn main() -> BotResult {
         .branch(case![Command::Cancel].endpoint(cancel));
 
     let state_map = dptree::entry()
-        .branch(case![State::CreateReceivePackBasename].endpoint(create::receive_pack_name))
-        .branch(case![State::CreateReceiveEmoji { pack_basename }].endpoint(create::receive_emoji))
-        .branch(case![State::CreateReceivePicture { pack_basename, emoji }].endpoint(create::receive_picture))
+        .branch(case![State::CreateReceivePackId].endpoint(create::receive_pack_id))
+        .branch(case![State::CreateReceiveEmoji { pack_id }].endpoint(create::receive_emoji))
+        .branch(case![State::CreateReceivePicture { pack_id, emoji }].endpoint(create::receive_picture))
         .branch(case![State::DeleteReceivePackName].endpoint(delete::receive_pack_name));
 
     let message_handler = Update::filter_message()

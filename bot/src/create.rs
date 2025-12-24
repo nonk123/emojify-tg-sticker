@@ -13,12 +13,12 @@ use crate::prelude::*;
 pub async fn start(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
     let mess = "Send me the identifier for your pack - something like \"my-cool-emojis\".";
     bot.send_message(msg.chat.id, mess).await?;
-    diag.update(State::CreateReceivePackBasename).await?;
+    diag.update(State::CreateReceivePackId).await?;
     Ok(())
 }
 
-pub async fn receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
-    let pack_basename = match msg.text().map(ToOwned::to_owned) {
+pub async fn receive_pack_id(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
+    let pack_id = match msg.text().map(ToOwned::to_owned) {
         Some(basename) if (6..=24).contains(&basename.len()) && basename.is_ascii() => basename,
         _ => {
             let mess = "Not good. Maybe too long or too short? Try again.";
@@ -27,25 +27,25 @@ pub async fn receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> BotR
         }
     };
 
-    if let Ok(_) = bot.get_sticker_set(pack_name(&pack_basename)).await {
-        let mess = "⚠️ This pack already exists. /cancel unless you wish to overwrite its contents.";
+    if let Ok(_) = bot.get_sticker_set(pack_full_id(&pack_id)).await {
+        let mess = "⚠️ This pack already exists. Send /cancel unless you wish to overwrite its contents.";
         bot.send_message(msg.chat.id, mess).await?;
     }
 
     let mess = "Send me the emoji you want to fill the pack with.";
     bot.send_message(msg.chat.id, mess).await?;
-    diag.update(State::CreateReceiveEmoji { pack_basename }).await?;
+    diag.update(State::CreateReceiveEmoji { pack_id }).await?;
 
     Ok(())
 }
 
-pub async fn receive_emoji(bot: Bot, diag: DialogueFr, pack_basename: String, msg: Message) -> BotResult {
+pub async fn receive_emoji(bot: Bot, diag: DialogueFr, pack_id: String, msg: Message) -> BotResult {
     match msg.text().map(ToOwned::to_owned) {
         Some(emoji) if (1..=4).contains(&emoji.len()) => {
             let mess = "Now send me the picture you want to slice. Attach it as a PNG file.";
             bot.send_message(msg.chat.id, mess).await?;
 
-            let state = State::CreateReceivePicture { pack_basename, emoji };
+            let state = State::CreateReceivePicture { pack_id, emoji };
             diag.update(state).await?;
         }
         _ => {
@@ -55,12 +55,7 @@ pub async fn receive_emoji(bot: Bot, diag: DialogueFr, pack_basename: String, ms
     Ok(())
 }
 
-pub async fn receive_picture(
-    bot: Bot,
-    diag: DialogueFr,
-    (basename, emoji): (String, String),
-    msg: Message,
-) -> BotResult {
+pub async fn receive_picture(bot: Bot, diag: DialogueFr, (id, emoji): (String, String), msg: Message) -> BotResult {
     match msg.document() {
         None => {
             let mess = "Attach the picture as a PNG file please.";
@@ -69,15 +64,14 @@ pub async fn receive_picture(
         Some(pic) => {
             bot.send_message(msg.chat.id, "Processing...").await?;
 
-            let mess =
-                if let Err(err) = upload_stickerset(pic.clone(), bot.clone(), &basename, &emoji, msg.clone()).await {
-                    format!("Something went wrong; cancelling operation. Error message: `{err}`")
-                } else {
-                    format!(
-                        "All good! Try your emoji pack at t.me/addstickers/{}",
-                        pack_name(&basename)
-                    )
-                };
+            let mess = if let Err(err) = upload_stickerset(pic.clone(), bot.clone(), &id, &emoji, msg.clone()).await {
+                format!("Something went wrong; cancelling operation. Error message: `{err}`")
+            } else {
+                format!(
+                    "All good! Try your emoji pack at t.me/addstickers/{}",
+                    pack_full_id(&id)
+                )
+            };
 
             bot.send_message(msg.chat.id, mess).await?;
             diag.exit().await?;
@@ -86,7 +80,7 @@ pub async fn receive_picture(
     Ok(())
 }
 
-async fn upload_stickerset(pic: Document, bot: Bot, basename: &str, emoji: &str, msg: Message) -> BotResult<()> {
+async fn upload_stickerset(pic: Document, bot: Bot, id: &str, emoji: &str, msg: Message) -> BotResult<()> {
     let file = bot.get_file(pic.file.id.clone()).await?;
     let mut data = Cursor::new(Vec::with_capacity(pic.file.size as usize));
     bot.download_file(&file.path, &mut data).await?;
@@ -119,14 +113,14 @@ async fn upload_stickerset(pic: Document, bot: Bot, basename: &str, emoji: &str,
         })
         .collect();
 
-    if let Ok(stickerset) = bot.get_sticker_set(pack_name(basename)).await {
+    if let Ok(stickerset) = bot.get_sticker_set(pack_full_id(id)).await {
         bot.send_message(msg.chat.id, "Uploading... (overwriting existing emojis in the pack)")
             .await?;
 
         for idx in 0..stickerset.stickers.len() {
             bot.replace_sticker_in_set(
                 user_id,
-                pack_name(basename),
+                pack_full_id(id),
                 stickerset.stickers[idx].file.id.to_string(),
                 stickers[idx].clone(),
             )
@@ -138,15 +132,15 @@ async fn upload_stickerset(pic: Document, bot: Bot, basename: &str, emoji: &str,
                 .await?;
         }
         for idx in stickerset.stickers.len()..stickers.len() {
-            bot.add_sticker_to_set(user_id, &pack_name(basename), stickers[idx].clone())
+            bot.add_sticker_to_set(user_id, &pack_full_id(id), stickers[idx].clone())
                 .await?;
         }
     } else {
         let req = CreateNewStickerSet {
             user_id,
             stickers,
-            title: format!("{} | TODO: edit", basename),
-            name: pack_name(basename),
+            title: format!("{} | TODO: edit", id),
+            name: pack_full_id(id),
             sticker_type: Some(StickerType::CustomEmoji),
             needs_repainting: None,
         };
@@ -157,6 +151,6 @@ async fn upload_stickerset(pic: Document, bot: Bot, basename: &str, emoji: &str,
     Ok(())
 }
 
-fn pack_name(basename: &str) -> String {
-    format!("{}_by_{}", basename, crate::bot_username())
+fn pack_full_id(id_from_user: &str) -> String {
+    format!("{}_by_{}", id_from_user, crate::bot_username())
 }
