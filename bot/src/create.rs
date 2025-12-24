@@ -72,8 +72,9 @@ pub async fn receive_picture(bot: Bot, diag: DialogueFr, (id, emoji): (String, S
                 )
             } else {
                 format!(
-                    "All good! Try your emoji pack at t.me/addstickers/{}",
-                    pack_full_id(&id)
+                    "{} <t\\.me/addstickers/{}>",
+                    markdown::escape("All good! Try your emoji pack at"),
+                    markdown::escape(&pack_full_id(&id))
                 )
             };
 
