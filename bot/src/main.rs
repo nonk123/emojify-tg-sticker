@@ -18,8 +18,10 @@ pub mod prelude {
     pub type ErrorValue = Box<dyn std::error::Error + Send + Sync + 'static>;
     pub type BotResult<T = ()> = Result<T, ErrorValue>;
 
-    pub use crate::{Command, State, bot_ext::BotExt};
     pub use teloxide::{prelude::*, utils::markdown};
+
+    pub(crate) use crate::bot_ext::BotExt;
+    pub use crate::{Command, State};
 }
 
 #[derive(BotCommands, Clone)]

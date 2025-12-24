@@ -2,7 +2,7 @@ use teloxide::types::ParseMode;
 
 use crate::prelude::*;
 
-pub trait BotExt {
+pub(crate) trait BotExt {
     async fn reply_to(&self, msg: &Message, contents: impl Into<String>) -> BotResult;
     async fn md_reply_to(&self, msg: &Message, contents: impl Into<String>) -> BotResult;
 }
