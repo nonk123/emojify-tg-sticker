@@ -10,14 +10,14 @@ use teloxide::{
 
 use crate::prelude::*;
 
-pub async fn start(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
+pub async fn start(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
     let mess = "Send me the identifier for your pack - something like \"my-cool-emojis\".";
     bot.send_message(msg.chat.id, mess).await?;
     diag.update(State::CreateReceivePackBasename).await?;
     Ok(())
 }
 
-pub async fn receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
+pub async fn receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
     let pack_basename = match msg.text().map(ToOwned::to_owned) {
         Some(basename) if (6..=24).contains(&basename.len()) && basename.is_ascii() => basename,
         _ => {
@@ -40,7 +40,7 @@ pub async fn receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> Hand
     Ok(())
 }
 
-pub async fn receive_emoji(bot: Bot, diag: DialogueFr, pack_basename: String, msg: Message) -> HandlerResult {
+pub async fn receive_emoji(bot: Bot, diag: DialogueFr, pack_basename: String, msg: Message) -> BotResult {
     match msg.text().map(ToOwned::to_owned) {
         Some(emoji) if (1..=4).contains(&emoji.len()) => {
             let mess = "Now send me the picture you want to slice. Attach it as a PNG file.";
@@ -61,7 +61,7 @@ pub async fn receive_picture(
     diag: DialogueFr,
     (pack_basename, emoji): (String, String),
     msg: Message,
-) -> HandlerResult {
+) -> BotResult {
     let pack_name = format!("{}_by_{}", pack_basename, crate::bot_username());
 
     match msg.document() {

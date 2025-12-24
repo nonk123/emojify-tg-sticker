@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-pub async fn start(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
+pub async fn start(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
     bot.send_message(
         msg.chat.id,
         "Send me the identifier of the emoji-pack to nuke. Completions currently unavailable due to skill issues, sorry.",
@@ -10,7 +10,7 @@ pub async fn start(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
     Ok(())
 }
 
-pub async fn receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
+pub async fn receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
     let Some(pack_name) = msg.text().map(ToOwned::to_owned) else {
         bot.send_message(msg.chat.id, "Please try again.").await?;
         return Ok(());

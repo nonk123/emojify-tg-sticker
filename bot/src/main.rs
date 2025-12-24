@@ -15,7 +15,7 @@ mod delete;
 pub mod prelude {
     pub type DialogueFr = Dialogue<crate::State, super::InMemStorage<crate::State>>;
     pub type ErrorValue = Box<dyn std::error::Error + Send + Sync + 'static>;
-    pub type HandlerResult = Result<(), ErrorValue>;
+    pub type BotResult<T = ()> = Result<T, ErrorValue>;
 
     pub use crate::{Command, State};
     pub use teloxide::prelude::*;
@@ -52,7 +52,7 @@ pub enum State {
 }
 
 #[tokio::main]
-async fn main() -> HandlerResult {
+async fn main() -> BotResult {
     let _ = dotenvy::dotenv();
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
@@ -97,27 +97,27 @@ async fn main() -> HandlerResult {
     Ok(())
 }
 
-async fn start(bot: Bot, msg: Message) -> HandlerResult {
+async fn start(bot: Bot, msg: Message) -> BotResult {
     // TODO: say something useful instead.
     let mess = "See /help to figure out what to do with me.";
     bot.send_message(msg.chat.id, mess).await?;
     Ok(())
 }
 
-async fn help(bot: Bot, msg: Message) -> HandlerResult {
+async fn help(bot: Bot, msg: Message) -> BotResult {
     let mess = Command::descriptions().to_string();
     bot.send_message(msg.chat.id, mess).await?;
     Ok(())
 }
 
-async fn cancel(bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
+async fn cancel(bot: Bot, diag: DialogueFr, msg: Message) -> BotResult {
     diag.exit().await?;
     let mess = "Cancelled whatever was going on.";
     bot.send_message(msg.chat.id, mess).await?;
     Ok(())
 }
 
-async fn invalid_state(bot: Bot, msg: Message) -> HandlerResult {
+async fn invalid_state(bot: Bot, msg: Message) -> BotResult {
     bot.send_message(msg.chat.id, "???").await?;
     Ok(())
 }
