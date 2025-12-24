@@ -65,7 +65,11 @@ pub async fn receive_picture(bot: Bot, diag: DialogueFr, (id, emoji): (String, S
             bot.send_message(msg.chat.id, "Processing...").await?;
 
             let mess = if let Err(err) = upload_stickerset(pic.clone(), bot.clone(), &id, &emoji, msg.clone()).await {
-                format!("Something went wrong; cancelling operation. Error message: `{err}`")
+                format!(
+                    "{}\n{}",
+                    markdown::escape("Something went wrong; cancelling operation. Full error message:"),
+                    markdown::blockquote(&err.to_string())
+                )
             } else {
                 format!(
                     "All good! Try your emoji pack at t.me/addstickers/{}",
@@ -73,7 +77,9 @@ pub async fn receive_picture(bot: Bot, diag: DialogueFr, (id, emoji): (String, S
                 )
             };
 
-            bot.send_message(msg.chat.id, mess).await?;
+            bot.send_message(msg.chat.id, mess)
+                .parse_mode(ParseMode::MarkdownV2)
+                .await?;
             diag.exit().await?;
         }
     }

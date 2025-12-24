@@ -18,7 +18,7 @@ pub mod prelude {
     pub type BotResult<T = ()> = Result<T, ErrorValue>;
 
     pub use crate::{Command, State};
-    pub use teloxide::prelude::*;
+    pub use teloxide::{prelude::*, types::ParseMode, utils::markdown};
 }
 
 #[derive(BotCommands, Clone)]
