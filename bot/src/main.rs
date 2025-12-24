@@ -64,14 +64,14 @@ async fn main() -> BotResult {
 
     use dptree::case;
 
+    let commands = case![State::Start]
+        .branch(case![Command::Start].endpoint(start))
+        .branch(case![Command::Help].endpoint(help))
+        .branch(case![Command::Create].endpoint(create::start))
+        .branch(case![Command::Delete].endpoint(delete::start));
+
     let command_handler = teloxide::filter_command::<Command, _>()
-        .branch(
-            case![State::Start]
-                .branch(case![Command::Start].endpoint(start))
-                .branch(case![Command::Help].endpoint(help))
-                .branch(case![Command::Create].endpoint(create::start))
-                .branch(case![Command::Delete].endpoint(delete::start)),
-        )
+        .branch(commands)
         .branch(case![Command::Cancel].endpoint(cancel));
 
     let state_map = dptree::entry()
