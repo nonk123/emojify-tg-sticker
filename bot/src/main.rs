@@ -1,12 +1,8 @@
 #[macro_use]
 extern crate log;
 
-use std::{
-    io::{Cursor, Seek, SeekFrom},
-    sync::Arc,
-};
+use std::io::{Cursor, Seek, SeekFrom};
 
-use color_eyre::eyre::OptionExt;
 use image::{ImageFormat, ImageReader};
 use log::LevelFilter;
 use teloxide::{
@@ -21,12 +17,12 @@ use teloxide::{
 };
 
 type DialogueFr = Dialogue<State, InMemStorage<State>>;
-type HandlerResult = color_eyre::eyre::Result<()>;
+type ErrorValue = Box<dyn std::error::Error + Send + Sync + 'static>;
+type HandlerResult = Result<(), ErrorValue>;
 
 #[tokio::main]
-async fn main() -> color_eyre::Result<()> {
+async fn main() -> HandlerResult {
     let _ = dotenvy::dotenv();
-    let _ = color_eyre::install();
     env_logger::builder().filter_level(LevelFilter::Info).init();
 
     info!("starting the bot");
@@ -34,7 +30,7 @@ async fn main() -> color_eyre::Result<()> {
     let bot = Bot::from_env();
     bot.set_my_commands(Command::bot_commands()).await?;
 
-    use dptree::{case, endpoint};
+    use dptree::case;
 
     let command_handler = teloxide::filter_command::<Command, _>()
         .branch(
@@ -46,13 +42,11 @@ async fn main() -> color_eyre::Result<()> {
         )
         .branch(case![Command::Cancel].endpoint(cancel));
 
-    let state_map = Update::filter_message()
+    let state_map = dptree::entry()
         .branch(case![State::CreateReceivePackBasename].endpoint(create_receive_pack_name))
         .branch(case![State::CreateReceiveEmoji { pack_basename }].endpoint(create_receive_emoji))
         .branch(case![State::CreateReceivePicture { pack_basename, emoji }].endpoint(create_receive_picture))
-        .branch(case![State::DeleteReceivePackName].endpoint(delete_receive_pack_name))
-        .branch(endpoint(async || HandlerResult::Ok(())))
-        .endpoint(report_state_errors);
+        .branch(case![State::DeleteReceivePackName].endpoint(delete_receive_pack_name));
 
     let message_handler = Update::filter_message()
         .branch(command_handler)
@@ -62,7 +56,7 @@ async fn main() -> color_eyre::Result<()> {
     let dialogue_handler = dialogue::enter::<Update, InMemStorage<State>, State, _>().branch(message_handler);
 
     let storage = InMemStorage::<State>::new();
-    Dispatcher::builder(bot, dialogue_handler)
+    Dispatcher::builder(bot.clone(), dialogue_handler)
         .dependencies(dptree::deps![storage])
         .enable_ctrlc_handler()
         .build()
@@ -235,7 +229,7 @@ async fn create_receive_picture(
                 }
             };
 
-            let user_id = msg.from.map(|x| x.id).ok_or_eyre("failed to get sender id")?;
+            let user_id = msg.from.map(|x| x.id).ok_or("failed to get sender id")?;
             let stickers: Vec<InputSticker> = result
                 .emojis
                 .into_iter()
@@ -280,31 +274,6 @@ async fn create_receive_picture(
 
 async fn invalid_state(bot: Bot, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, "???").await?;
-    Ok(())
-}
-
-async fn report_state_errors(result: Arc<HandlerResult>, bot: Bot, diag: DialogueFr, msg: Message) -> HandlerResult {
-    if let Err(err_msg) = result.as_ref() {
-        let (start, prompt) = match diag.get().await? {
-            Some(
-                State::CreateReceivePackBasename
-                | State::CreateReceiveEmoji { .. }
-                | State::CreateReceivePicture { .. },
-            ) => (
-                State::CreateReceivePackBasename,
-                "Enter another identifier for your pack.",
-            ),
-            Some(State::DeleteReceivePackName) => (State::DeleteReceivePackName, "Enter your pack's identifier again."),
-            _ => {
-                let _ = diag.exit().await;
-                return Ok(());
-            }
-        };
-
-        let mess = format!("Something went wrong. Error code: `{err_msg}`\n\nLet's try from scratch. {prompt}");
-        bot.send_message(msg.chat.id, mess).await?;
-        diag.update(start).await?;
-    }
     Ok(())
 }
 

@@ -590,7 +590,6 @@ dependencies = [
 name = "emojify-tg-sticker-bot"
 version = "0.1.0"
 dependencies = [
- "color-eyre",
  "dotenvy",
  "dptree",
  "emojify-tg-sticker",
