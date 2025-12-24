@@ -163,7 +163,7 @@ async fn create_receive_pack_name(bot: Bot, diag: DialogueFr, msg: Message) -> H
 
     let pack_name = format!("{}_by_{}", pack_basename, bot_username());
     if let Ok(_) = bot.get_sticker_set(pack_name).await {
-        let mess = ":warning: This pack already exists. /cancel unless you wish to overwrite its contents.";
+        let mess = "⚠️ This pack already exists. /cancel unless you wish to overwrite its contents.";
         bot.send_message(msg.chat.id, mess).await?;
     }
 
