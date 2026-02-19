@@ -26,7 +26,7 @@ pub async fn receive_pack_id(bot: Bot, diag: DialogueFr, msg: Message) -> BotRes
         }
     };
 
-    if let Ok(_) = bot.get_sticker_set(pack_full_id(&pack_id)).await {
+    if bot.get_sticker_set(pack_full_id(&pack_id)).await.is_ok() {
         let mess = "⚠️ This pack already exists. Send /cancel unless you wish to nuke it and overwrite its contents.";
         bot.reply_to(&msg, mess).await?;
     }
@@ -38,46 +38,47 @@ pub async fn receive_pack_id(bot: Bot, diag: DialogueFr, msg: Message) -> BotRes
 }
 
 pub async fn receive_emoji(bot: Bot, diag: DialogueFr, pack_id: String, msg: Message) -> BotResult {
-    match msg.text().map(ToOwned::to_owned) {
-        Some(emoji) if (1..=4).contains(&emoji.len()) => {
-            let mess = "Now send me the picture you want to slice. Attach it as a PNG file.";
-            bot.reply_to(&msg, mess).await?;
-
-            let state = State::CreateReceivePicture { pack_id, emoji };
-            diag.update(state).await?;
-        }
+    let emoji = match msg.text().map(ToOwned::to_owned) {
+        Some(emoji) if emoji.len() >= 1 && emoji.len() <= 4 => emoji,
         _ => {
             bot.reply_to(&msg, "Not good. Try again.").await?;
+            return Ok(());
         }
-    }
+    };
+
+    let mess = "Now send me the picture you want to slice. Attach it as a PNG file.";
+    bot.reply_to(&msg, mess).await?;
+
+    let state = State::CreateReceivePicture { pack_id, emoji };
+    diag.update(state).await?;
     Ok(())
 }
 
 pub async fn receive_picture(bot: Bot, diag: DialogueFr, (id, emoji): (String, String), msg: Message) -> BotResult {
-    match msg.document() {
-        None => {
-            bot.reply_to(&msg, "Attach the picture as a PNG file please.").await?;
-        }
-        Some(pic) => {
-            bot.reply_to(&msg, "Processing...").await?;
+    let Some(pic) = msg.document() else {
+        bot.reply_to(&msg, "Attach the picture as a PNG file please.").await?;
+        return Ok(());
+    };
 
-            let mess = if let Err(err) = upload_stickerset(pic.clone(), bot.clone(), &id, &emoji, msg.clone()).await {
-                format!(
-                    "{}\n{}",
-                    markdown::escape("Something went wrong; cancelling operation. Full error message:"),
-                    markdown::blockquote(&err.to_string())
-                )
-            } else {
-                format!(
-                    "{} t\\.me/addstickers/{}",
-                    markdown::escape("All good! Try your emoji pack at"),
-                    markdown::escape(&pack_full_id(&id))
-                )
-            };
-            bot.md_reply_to(&msg, mess).await?;
-            diag.exit().await?;
-        }
-    }
+    bot.reply_to(&msg, "Processing...").await?;
+
+    let mess = if let Err(err) = upload_stickerset(pic.clone(), bot.clone(), &id, &emoji, msg.clone()).await {
+        format!(
+            "{}\n{}",
+            markdown::escape("Something went wrong; cancelling operation. Full error message:"),
+            markdown::blockquote(&err.to_string())
+        )
+    } else {
+        format!(
+            "{} t\\.me/addstickers/{}",
+            markdown::escape("All good! Try your emoji pack at"),
+            markdown::escape(&pack_full_id(&id))
+        )
+    };
+
+    bot.md_reply_to(&msg, mess).await?;
+    diag.exit().await?;
+
     Ok(())
 }
 
@@ -98,10 +99,10 @@ async fn upload_stickerset(pic: Document, bot: Bot, id: &str, emoji: &str, msg: 
         .into_iter()
         .filter_map(|image| {
             let mut cursor = Cursor::new(Vec::<u8>::new());
-            if let Err(_) = image.write_to(&mut cursor, ImageFormat::Png) {
+            if image.write_to(&mut cursor, ImageFormat::Png).is_err() {
                 return None;
             }
-            if let Err(_) = cursor.seek(SeekFrom::Start(0)) {
+            if cursor.seek(SeekFrom::Start(0)).is_err() {
                 return None;
             }
             Some(InputSticker {
@@ -114,7 +115,7 @@ async fn upload_stickerset(pic: Document, bot: Bot, id: &str, emoji: &str, msg: 
         })
         .collect();
 
-    if let Ok(_) = bot.get_sticker_set(pack_full_id(id)).await {
+    if bot.get_sticker_set(pack_full_id(id)).await.is_ok() {
         let _ = bot.delete_sticker_set(pack_full_id(id)).await;
     }
 
