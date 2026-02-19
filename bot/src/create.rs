@@ -94,7 +94,8 @@ async fn upload_stickerset(pic: Document, bot: Bot, id: &str, emoji: &str, msg: 
     let user_id = msg.from.clone().map(|x| x.id).ok_or("Failed to get sender id")?;
     let image = reader.decode()?;
 
-    let stickers: Vec<InputSticker> = emojify_tg_sticker::transform(&image)?
+    // TODO: allow customizing tile size (2nd parameter).
+    let stickers: Vec<InputSticker> = emojify_tg_sticker::transform(&image, emojify_tg_sticker::EMOJI_TILE_SIZE)?
         .emojis
         .into_iter()
         .filter_map(|image| {

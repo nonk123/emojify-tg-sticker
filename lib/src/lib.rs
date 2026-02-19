@@ -1,12 +1,13 @@
 use std::fmt;
 
-use image::{GenericImageView, ImageError, Rgba, RgbaImage};
+use image::{GenericImageView, ImageError, Rgba, RgbaImage, imageops};
 
-pub const EMOJI_SIZE: u32 = 100;
+pub const EMOJI_TILE_SIZE: u32 = 100;
 
 #[derive(Debug)]
 pub enum EmojifyError {
     ImageError(ImageError),
+    TilingExceedsTelegramLimit,
 }
 
 impl std::error::Error for EmojifyError {}
@@ -15,6 +16,10 @@ impl fmt::Display for EmojifyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ImageError(err) => write!(f, "{}", err),
+            Self::TilingExceedsTelegramLimit => write!(
+                f,
+                "emojify produced over 50 tiles, which breaks Telegram's emoji-pack limits"
+            ),
         }
     }
 }
@@ -40,20 +45,28 @@ impl Emojify {
 
 pub fn transform(
     image: &(impl GenericImageView<Pixel = Rgba<u8>> + 'static),
+    tile_size: u32,
 ) -> EmojifyResult<Emojify> {
     let mut emojis = vec![];
 
-    let mut rows = image.height() / EMOJI_SIZE;
-    let cols = image.width() / EMOJI_SIZE;
+    let mut rows = image.height() / tile_size;
+    let cols = image.width() / tile_size;
+
+    if rows * cols < 1 || rows * cols > 50 {
+        return Err(EmojifyError::TilingExceedsTelegramLimit);
+    }
 
     for row in 0..rows {
         for col in 0..cols {
-            let startx = col * EMOJI_SIZE;
-            let starty = row * EMOJI_SIZE;
-
             let emoji = image
-                .try_view(startx, starty, EMOJI_SIZE, EMOJI_SIZE)?
+                .try_view(col * tile_size, row * tile_size, tile_size, tile_size)?
                 .to_image();
+            let emoji = imageops::resize(
+                &emoji,
+                EMOJI_TILE_SIZE,
+                EMOJI_TILE_SIZE,
+                imageops::FilterType::Triangle,
+            );
             emojis.push(emoji);
         }
     }

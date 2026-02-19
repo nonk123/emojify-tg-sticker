@@ -4,7 +4,7 @@ extern crate log;
 use std::path::PathBuf;
 
 use clap::Parser;
-use emojify_tg_sticker::EMOJI_SIZE;
+use emojify_tg_sticker::EMOJI_TILE_SIZE;
 use image::ImageReader;
 use log::LevelFilter;
 
@@ -25,17 +25,17 @@ fn main() -> color_eyre::eyre::Result<()> {
     let args = Args::parse();
     let input_image = ImageReader::open(&args.image_path)?.decode()?;
 
-    let result = emojify_tg_sticker::transform(&input_image)?;
-    if result.cols * EMOJI_SIZE < input_image.width() {
+    let result = emojify_tg_sticker::transform(&input_image, emojify_tg_sticker::EMOJI_TILE_SIZE)?;
+    if result.cols * EMOJI_TILE_SIZE < input_image.width() {
         warn!(
             "input image width was truncated to {}px",
-            result.cols * EMOJI_SIZE
+            result.cols * EMOJI_TILE_SIZE
         );
     }
-    if result.rows() * EMOJI_SIZE < input_image.height() {
+    if result.rows() * EMOJI_TILE_SIZE < input_image.height() {
         warn!(
             "input image height was truncated to {}px",
-            result.rows() * EMOJI_SIZE
+            result.rows() * EMOJI_TILE_SIZE
         );
     }
 
