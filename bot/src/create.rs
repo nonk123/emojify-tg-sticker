@@ -1,6 +1,6 @@
 use std::io::{Cursor, Seek, SeekFrom};
 
-use image::{ImageFormat, ImageReader};
+use emojify_tg_sticker::image::{ImageFormat, ImageReader};
 use teloxide::{
     net::Download,
     payloads::CreateNewStickerSet,

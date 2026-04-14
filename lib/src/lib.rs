@@ -2,6 +2,8 @@ use std::fmt;
 
 use image::{GenericImageView, ImageError, Rgba, RgbaImage, imageops};
 
+pub use image;
+
 pub const EMOJI_TILE_SIZE: u32 = 100;
 
 #[derive(Debug)]

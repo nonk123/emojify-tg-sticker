@@ -4,8 +4,7 @@ extern crate log;
 use std::path::PathBuf;
 
 use clap::Parser;
-use emojify_tg_sticker::EMOJI_TILE_SIZE;
-use image::ImageReader;
+use emojify_tg_sticker::{EMOJI_TILE_SIZE, image::ImageReader};
 use log::LevelFilter;
 
 #[derive(Parser)]
